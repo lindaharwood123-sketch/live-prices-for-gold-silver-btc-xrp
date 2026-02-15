@@ -228,6 +228,7 @@
     <div class="last-update" id="last-update"></div>
 
     <script>
+        const METAL_API_KEY = 'af21340bb30ac15735963138ff67342a';
         // Store the raw prices
         let rawPrices = {
             gold: { price: null, change: null },
@@ -255,81 +256,73 @@
         };
         
         async function fetchPrices() {
-            currentCurrency = document.getElementById('currency').value;
-            
-            // Fetch metals from Metals.live API (free, real-time)
-            try {
-                const metalsResponse = await fetch(
-                    `https://api.metals.live/v1/spot`
-                );
-                const metalsData = await metalsResponse.json();
-                
-                // Metals.live returns prices in USD per troy oz
-                // Convert to selected currency
-                const exchangeRate = await getExchangeRate(currentCurrency);
-                
-                if (metalsData && metalsData.length > 0) {
-                    metalsData.forEach(metal => {
-                        if (metal.metal === 'gold') {
-                            rawPrices.gold = {
-                                price: metal.price * exchangeRate,
-                                change: ((metal.price - metal.prev_close) / metal.prev_close) * 100
-                            };
-                        }
-                        if (metal.metal === 'silver') {
-                            rawPrices.silver = {
-                                price: metal.price * exchangeRate,
-                                change: ((metal.price - metal.prev_close) / metal.prev_close) * 100
-                            };
-                        }
-                    });
-                }
-                
-                updateMetalPrices();
-                
-            } catch (error) {
-                console.error('Error fetching metal prices:', error);
-                // Fallback to approximate prices if API fails
-                const fallbackRates = {'USD': 1, 'EUR': 0.92, 'GBP': 0.79, 'AUD': 1.52, 'CAD': 1.36};
-                const rate = fallbackRates[currentCurrency] || 1;
-                rawPrices.gold = { price: 2650 * rate, change: 0 };
-                rawPrices.silver = { price: 30 * rate, change: 0 };
-                updateMetalPrices();
+    currentCurrency = document.getElementById('currency').value;
+    
+    // Fetch metals from MetalpriceAPI
+    try {
+        const metalsResponse = await fetch(
+            `https://api.metalpriceapi.com/v1/latest?api_key=${METAL_API_KEY}&base=${currentCurrency}&currencies=XAU,XAG`
+        );
+        const metalsData = await metalsResponse.json();
+        
+        if (metalsData.success && metalsData.rates) {
+            // MetalpriceAPI returns rates as 1/price, so we need to invert them
+            if (metalsData.rates.XAU) {
+                const goldPrice = 1 / metalsData.rates.XAU;
+                rawPrices.gold = {
+                    price: goldPrice,
+                    change: 0
+                };
             }
             
-            // Fetch crypto from CoinGecko
-            try {
-                const cryptoCurrency = currentCurrency.toLowerCase();
-                const cryptoResponse = await fetch(
-                    `https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ripple&vs_currencies=${cryptoCurrency}&include_24hr_change=true`
-                );
-                const cryptoData = await cryptoResponse.json();
-                
-                if (cryptoData.bitcoin) {
-                    rawPrices.btc = {
-                        price: cryptoData.bitcoin[cryptoCurrency],
-                        change: cryptoData.bitcoin[`${cryptoCurrency}_24h_change`]
-                    };
-                    updatePrice('btc', rawPrices.btc.price, rawPrices.btc.change);
-                }
-                
-                if (cryptoData.ripple) {
-                    rawPrices.xrp = {
-                        price: cryptoData.ripple[cryptoCurrency],
-                        change: cryptoData.ripple[`${cryptoCurrency}_24h_change`]
-                    };
-                    updatePrice('xrp', rawPrices.xrp.price, rawPrices.xrp.change);
-                }
-                
-            } catch (error) {
-                console.error('Error fetching crypto prices:', error);
+            if (metalsData.rates.XAG) {
+                const silverPrice = 1 / metalsData.rates.XAG;
+                rawPrices.silver = {
+                    price: silverPrice,
+                    change: 0
+                };
             }
-            
-            calculateTotals();
-            
-            const now = new Date().toLocaleString();
-            document.getElementById('last-update').textContent = `Last updated: ${now} • Live prices`;
         }
+        
+        updateMetalPrices();
+        
+    } catch (error) {
+        console.error('Error fetching metal prices:', error);
+    }
+    
+    // Fetch crypto from CoinGecko
+    try {
+        const cryptoCurrency = currentCurrency.toLowerCase();
+        const cryptoResponse = await fetch(
+            `https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ripple&vs_currencies=${cryptoCurrency}&include_24hr_change=true`
+        );
+        const cryptoData = await cryptoResponse.json();
+        
+        if (cryptoData.bitcoin) {
+            rawPrices.btc = {
+                price: cryptoData.bitcoin[cryptoCurrency],
+                change: cryptoData.bitcoin[`${cryptoCurrency}_24h_change`]
+            };
+            updatePrice('btc', rawPrices.btc.price, rawPrices.btc.change);
+        }
+        
+        if (cryptoData.ripple) {
+            rawPrices.xrp = {
+                price: cryptoData.ripple[cryptoCurrency],
+                change: cryptoData.ripple[`${cryptoCurrency}_24h_change`]
+            };
+            updatePrice('xrp', rawPrices.xrp.price, rawPrices.xrp.change);
+        }
+        
+    } catch (error) {
+        console.error('Error fetching crypto prices:', error);
+    }
+    
+    calculateTotals();
+    
+    const now = new Date().toLocaleString();
+    document.getElementById('last-update').textContent = `Last updated: ${now} • Live prices`;
+}
         
         async function getExchangeRate(currency) {
             if (currency === 'USD') return 1;
