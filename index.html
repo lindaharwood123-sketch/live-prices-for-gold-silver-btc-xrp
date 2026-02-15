@@ -15,7 +15,23 @@
         }
         h1 {
             text-align: center;
-            margin-bottom: 40px;
+            margin-bottom: 20px;
+        }
+        .unit-selector {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .unit-selector label {
+            font-size: 1.1em;
+            margin-right: 10px;
+        }
+        .unit-selector select {
+            padding: 8px 15px;
+            font-size: 1em;
+            border-radius: 8px;
+            border: none;
+            background: rgba(255, 255, 255, 0.9);
+            cursor: pointer;
         }
         .price-grid {
             display: grid;
@@ -42,6 +58,11 @@
             font-weight: bold;
             margin: 10px 0;
         }
+        .unit-label {
+            font-size: 0.8em;
+            opacity: 0.8;
+            margin-top: 5px;
+        }
         .change {
             font-size: 0.9em;
             margin-top: 10px;
@@ -63,16 +84,27 @@
 <body>
     <h1>📊 Live Asset Prices</h1>
     
+    <div class="unit-selector">
+        <label for="metal-unit">Gold/Silver Unit:</label>
+        <select id="metal-unit" onchange="updateMetalPrices()">
+            <option value="oz">Troy Ounce (oz)</option>
+            <option value="gram">Gram (g)</option>
+            <option value="kg">Kilogram (kg)</option>
+        </select>
+    </div>
+    
     <div class="price-grid">
         <div class="price-card">
             <div class="asset-name">🪙 Gold</div>
             <div class="price loading" id="gold-price">Loading...</div>
+            <div class="unit-label" id="gold-unit"></div>
             <div class="change" id="gold-change"></div>
         </div>
         
         <div class="price-card">
             <div class="asset-name">🥈 Silver</div>
             <div class="price loading" id="silver-price">Loading...</div>
+            <div class="unit-label" id="silver-unit"></div>
             <div class="change" id="silver-change"></div>
         </div>
         
@@ -92,6 +124,19 @@
     <div class="last-update" id="last-update"></div>
 
     <script>
+        // Store the raw prices
+        let rawPrices = {
+            gold: null,
+            silver: null
+        };
+        
+        // Conversion rates (from troy ounce)
+        const conversions = {
+            'oz': 1,           // troy ounce (base unit)
+            'gram': 0.03215,   // 1 gram = 0.03215 troy oz
+            'kg': 32.1507      // 1 kg = 32.1507 troy oz
+        };
+        
         async function fetchPrices() {
             try {
                 // Fetch crypto prices from CoinGecko
@@ -110,15 +155,23 @@
                     updatePrice('xrp', data.ripple.usd, data.ripple.usd_24h_change);
                 }
                 
-                // Update Gold (CoinGecko tracks gold as well)
+                // Store raw gold and silver prices (per troy ounce)
                 if (data.gold) {
-                    updatePrice('gold', data.gold.usd, data.gold.usd_24h_change);
+                    rawPrices.gold = {
+                        price: data.gold.usd,
+                        change: data.gold.usd_24h_change
+                    };
                 }
                 
-                // Update Silver
                 if (data.silver) {
-                    updatePrice('silver', data.silver.usd, data.silver.usd_24h_change);
+                    rawPrices.silver = {
+                        price: data.silver.usd,
+                        change: data.silver.usd_24h_change
+                    };
                 }
+                
+                // Update metal prices with current unit
+                updateMetalPrices();
                 
                 // Update timestamp
                 const now = new Date().toLocaleString();
@@ -126,6 +179,25 @@
                 
             } catch (error) {
                 console.error('Error fetching prices:', error);
+            }
+        }
+        
+        function updateMetalPrices() {
+            const unit = document.getElementById('metal-unit').value;
+            const conversion = conversions[unit];
+            
+            // Update gold
+            if (rawPrices.gold) {
+                const convertedPrice = rawPrices.gold.price / conversion;
+                updatePrice('gold', convertedPrice, rawPrices.gold.change);
+                updateUnitLabel('gold', unit);
+            }
+            
+            // Update silver
+            if (rawPrices.silver) {
+                const convertedPrice = rawPrices.silver.price / conversion;
+                updatePrice('silver', convertedPrice, rawPrices.silver.change);
+                updateUnitLabel('silver', unit);
             }
         }
         
@@ -145,6 +217,16 @@
                 changeElement.textContent = `${changeSymbol} ${Math.abs(change).toFixed(2)}%`;
                 changeElement.className = `change ${changeClass}`;
             }
+        }
+        
+        function updateUnitLabel(asset, unit) {
+            const unitElement = document.getElementById(`${asset}-unit`);
+            const unitNames = {
+                'oz': 'per troy ounce',
+                'gram': 'per gram',
+                'kg': 'per kilogram'
+            };
+            unitElement.textContent = unitNames[unit];
         }
         
         // Fetch prices on load
