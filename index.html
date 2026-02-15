@@ -3,12 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Live Prices - Gold, Silver, BTC, XRP</title>
+    <title>Portfolio Value Calculator</title>
     <style>
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            max-width: 800px;
-            margin: 50px auto;
+            max-width: 900px;
+            margin: 30px auto;
             padding: 20px;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
@@ -17,26 +17,41 @@
             text-align: center;
             margin-bottom: 20px;
         }
-        .unit-selector {
-            text-align: center;
+        .controls {
+            background: rgba(255, 255, 255, 0.15);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            padding: 20px;
             margin-bottom: 30px;
+            display: flex;
+            gap: 30px;
+            justify-content: center;
+            flex-wrap: wrap;
         }
-        .unit-selector label {
-            font-size: 1.1em;
-            margin-right: 10px;
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
         }
-        .unit-selector select {
-            padding: 8px 15px;
+        .control-group label {
+            font-size: 0.9em;
+            font-weight: bold;
+            opacity: 0.9;
+        }
+        .control-group select {
+            padding: 10px 15px;
             font-size: 1em;
             border-radius: 8px;
             border: none;
             background: rgba(255, 255, 255, 0.9);
             cursor: pointer;
+            min-width: 150px;
         }
         .price-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
             gap: 20px;
+            margin-bottom: 25px;
         }
         .price-card {
             background: rgba(255, 255, 255, 0.1);
@@ -54,14 +69,39 @@
             opacity: 0.9;
         }
         .price {
-            font-size: 2em;
+            font-size: 1.5em;
             font-weight: bold;
             margin: 10px 0;
         }
         .unit-label {
             font-size: 0.8em;
-            opacity: 0.8;
-            margin-top: 5px;
+            opacity: 0.7;
+            margin-bottom: 15px;
+        }
+        .quantity-input {
+            margin: 15px 0;
+        }
+        .quantity-input input {
+            width: 100%;
+            padding: 10px;
+            font-size: 1em;
+            border-radius: 8px;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            background: rgba(255, 255, 255, 0.9);
+            text-align: center;
+            box-sizing: border-box;
+        }
+        .quantity-input input:focus {
+            outline: none;
+            border-color: rgba(255, 255, 255, 0.6);
+        }
+        .total-value {
+            font-size: 1.3em;
+            font-weight: bold;
+            margin-top: 10px;
+            padding-top: 10px;
+            border-top: 2px solid rgba(255, 255, 255, 0.3);
+            color: #4ade80;
         }
         .change {
             font-size: 0.9em;
@@ -73,24 +113,58 @@
             opacity: 0.6;
             font-style: italic;
         }
+        .grand-total {
+            background: rgba(255, 255, 255, 0.2);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            padding: 30px;
+            text-align: center;
+            box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
+            border: 2px solid rgba(255, 255, 255, 0.3);
+        }
+        .grand-total-label {
+            font-size: 1.2em;
+            opacity: 0.9;
+            margin-bottom: 10px;
+        }
+        .grand-total-value {
+            font-size: 3em;
+            font-weight: bold;
+            color: #4ade80;
+        }
         .last-update {
             text-align: center;
-            margin-top: 30px;
+            margin-top: 20px;
             opacity: 0.7;
             font-size: 0.9em;
         }
     </style>
 </head>
 <body>
-    <h1>📊 Live Asset Prices</h1>
+    <h1>💰 Portfolio Value Calculator</h1>
     
-    <div class="unit-selector">
-        <label for="metal-unit">Gold/Silver Unit:</label>
-        <select id="metal-unit" onchange="updateMetalPrices()">
-            <option value="oz">Troy Ounce (oz)</option>
-            <option value="gram">Gram (g)</option>
-            <option value="kg">Kilogram (kg)</option>
-        </select>
+    <div class="controls">
+        <div class="control-group">
+            <label for="currency">Currency</label>
+            <select id="currency" onchange="fetchPrices()">
+                <option value="usd">USD ($)</option>
+                <option value="eur">EUR (€)</option>
+                <option value="gbp">GBP (£)</option>
+                <option value="jpy">JPY (¥)</option>
+                <option value="aud">AUD (A$)</option>
+                <option value="cad">CAD (C$)</option>
+                <option value="chf">CHF (Fr)</option>
+            </select>
+        </div>
+        
+        <div class="control-group">
+            <label for="metal-unit">Gold/Silver Unit</label>
+            <select id="metal-unit" onchange="updateMetalPrices()">
+                <option value="oz">Troy Ounce (oz)</option>
+                <option value="gram">Gram (g)</option>
+                <option value="kg">Kilogram (kg)</option>
+            </select>
+        </div>
     </div>
     
     <div class="price-grid">
@@ -99,6 +173,11 @@
             <div class="price loading" id="gold-price">Loading...</div>
             <div class="unit-label" id="gold-unit"></div>
             <div class="change" id="gold-change"></div>
+            <div class="quantity-input">
+                <input type="number" id="gold-quantity" placeholder="Enter quantity" 
+                       step="0.01" min="0" value="0" oninput="calculateTotals()">
+            </div>
+            <div class="total-value" id="gold-total">-</div>
         </div>
         
         <div class="price-card">
@@ -106,19 +185,41 @@
             <div class="price loading" id="silver-price">Loading...</div>
             <div class="unit-label" id="silver-unit"></div>
             <div class="change" id="silver-change"></div>
+            <div class="quantity-input">
+                <input type="number" id="silver-quantity" placeholder="Enter quantity" 
+                       step="0.01" min="0" value="0" oninput="calculateTotals()">
+            </div>
+            <div class="total-value" id="silver-total">-</div>
         </div>
         
         <div class="price-card">
             <div class="asset-name">₿ Bitcoin</div>
             <div class="price loading" id="btc-price">Loading...</div>
+            <div class="unit-label">per BTC</div>
             <div class="change" id="btc-change"></div>
+            <div class="quantity-input">
+                <input type="number" id="btc-quantity" placeholder="Enter quantity" 
+                       step="0.00000001" min="0" value="0" oninput="calculateTotals()">
+            </div>
+            <div class="total-value" id="btc-total">-</div>
         </div>
         
         <div class="price-card">
             <div class="asset-name">◎ XRP</div>
             <div class="price loading" id="xrp-price">Loading...</div>
+            <div class="unit-label">per XRP</div>
             <div class="change" id="xrp-change"></div>
+            <div class="quantity-input">
+                <input type="number" id="xrp-quantity" placeholder="Enter quantity" 
+                       step="0.01" min="0" value="0" oninput="calculateTotals()">
+            </div>
+            <div class="total-value" id="xrp-total">-</div>
         </div>
+    </div>
+    
+    <div class="grand-total">
+        <div class="grand-total-label">Total Portfolio Value</div>
+        <div class="grand-total-value" id="grand-total">-</div>
     </div>
     
     <div class="last-update" id="last-update"></div>
@@ -126,54 +227,75 @@
     <script>
         // Store the raw prices
         let rawPrices = {
-            gold: null,
-            silver: null
+            gold: { price: null, change: null },
+            silver: { price: null, change: null },
+            btc: { price: null, change: null },
+            xrp: { price: null, change: null }
         };
+        
+        let currentCurrency = 'usd';
         
         // Conversion rates (from troy ounce)
         const conversions = {
-            'oz': 1,           // troy ounce (base unit)
-            'gram': 0.03215,   // 1 gram = 0.03215 troy oz
-            'kg': 32.1507      // 1 kg = 32.1507 troy oz
+            'oz': 1,           
+            'gram': 0.03215,   
+            'kg': 32.1507      
+        };
+        
+        // Currency symbols
+        const currencySymbols = {
+            'usd': '$',
+            'eur': '€',
+            'gbp': '£',
+            'jpy': '¥',
+            'aud': 'A$',
+            'cad': 'C$',
+            'chf': 'Fr'
         };
         
         async function fetchPrices() {
             try {
-                // Fetch crypto prices from CoinGecko
-                const cryptoResponse = await fetch(
-                    'https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ripple,gold,silver&vs_currencies=usd&include_24hr_change=true'
+                currentCurrency = document.getElementById('currency').value;
+                
+                const response = await fetch(
+                    `https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ripple,gold,silver&vs_currencies=${currentCurrency}&include_24hr_change=true`
                 );
-                const data = await cryptoResponse.json();
+                const data = await response.json();
                 
-                // Update Bitcoin
+                // Store raw prices
                 if (data.bitcoin) {
-                    updatePrice('btc', data.bitcoin.usd, data.bitcoin.usd_24h_change);
+                    rawPrices.btc = {
+                        price: data.bitcoin[currentCurrency],
+                        change: data.bitcoin[`${currentCurrency}_24h_change`]
+                    };
+                    updatePrice('btc', rawPrices.btc.price, rawPrices.btc.change);
                 }
                 
-                // Update XRP
                 if (data.ripple) {
-                    updatePrice('xrp', data.ripple.usd, data.ripple.usd_24h_change);
+                    rawPrices.xrp = {
+                        price: data.ripple[currentCurrency],
+                        change: data.ripple[`${currentCurrency}_24h_change`]
+                    };
+                    updatePrice('xrp', rawPrices.xrp.price, rawPrices.xrp.change);
                 }
                 
-                // Store raw gold and silver prices (per troy ounce)
                 if (data.gold) {
                     rawPrices.gold = {
-                        price: data.gold.usd,
-                        change: data.gold.usd_24h_change
+                        price: data.gold[currentCurrency],
+                        change: data.gold[`${currentCurrency}_24h_change`]
                     };
                 }
                 
                 if (data.silver) {
                     rawPrices.silver = {
-                        price: data.silver.usd,
-                        change: data.silver.usd_24h_change
+                        price: data.silver[currentCurrency],
+                        change: data.silver[`${currentCurrency}_24h_change`]
                     };
                 }
                 
-                // Update metal prices with current unit
                 updateMetalPrices();
+                calculateTotals();
                 
-                // Update timestamp
                 const now = new Date().toLocaleString();
                 document.getElementById('last-update').textContent = `Last updated: ${now}`;
                 
@@ -186,32 +308,33 @@
             const unit = document.getElementById('metal-unit').value;
             const conversion = conversions[unit];
             
-            // Update gold
-            if (rawPrices.gold) {
+            if (rawPrices.gold.price) {
                 const convertedPrice = rawPrices.gold.price / conversion;
                 updatePrice('gold', convertedPrice, rawPrices.gold.change);
                 updateUnitLabel('gold', unit);
             }
             
-            // Update silver
-            if (rawPrices.silver) {
+            if (rawPrices.silver.price) {
                 const convertedPrice = rawPrices.silver.price / conversion;
                 updatePrice('silver', convertedPrice, rawPrices.silver.change);
                 updateUnitLabel('silver', unit);
             }
+            
+            calculateTotals();
         }
         
         function updatePrice(asset, price, change) {
             const priceElement = document.getElementById(`${asset}-price`);
             const changeElement = document.getElementById(`${asset}-change`);
+            const symbol = currencySymbols[currentCurrency];
             
-            priceElement.textContent = `$${price.toLocaleString(undefined, {
+            priceElement.textContent = `${symbol}${price.toLocaleString(undefined, {
                 minimumFractionDigits: 2,
                 maximumFractionDigits: 2
             })}`;
             priceElement.classList.remove('loading');
             
-            if (change !== undefined) {
+            if (change !== undefined && change !== null) {
                 const changeClass = change >= 0 ? 'positive' : 'negative';
                 const changeSymbol = change >= 0 ? '▲' : '▼';
                 changeElement.textContent = `${changeSymbol} ${Math.abs(change).toFixed(2)}%`;
@@ -227,6 +350,78 @@
                 'kg': 'per kilogram'
             };
             unitElement.textContent = unitNames[unit];
+        }
+        
+        function calculateTotals() {
+            const symbol = currencySymbols[currentCurrency];
+            const unit = document.getElementById('metal-unit').value;
+            const conversion = conversions[unit];
+            
+            let grandTotal = 0;
+            
+            // Calculate Gold
+            const goldQty = parseFloat(document.getElementById('gold-quantity').value) || 0;
+            if (rawPrices.gold.price && goldQty > 0) {
+                const goldPrice = rawPrices.gold.price / conversion;
+                const goldTotal = goldQty * goldPrice;
+                document.getElementById('gold-total').textContent = `${symbol}${goldTotal.toLocaleString(undefined, {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2
+                })}`;
+                grandTotal += goldTotal;
+            } else {
+                document.getElementById('gold-total').textContent = '-';
+            }
+            
+            // Calculate Silver
+            const silverQty = parseFloat(document.getElementById('silver-quantity').value) || 0;
+            if (rawPrices.silver.price && silverQty > 0) {
+                const silverPrice = rawPrices.silver.price / conversion;
+                const silverTotal = silverQty * silverPrice;
+                document.getElementById('silver-total').textContent = `${symbol}${silverTotal.toLocaleString(undefined, {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2
+                })}`;
+                grandTotal += silverTotal;
+            } else {
+                document.getElementById('silver-total').textContent = '-';
+            }
+            
+            // Calculate BTC
+            const btcQty = parseFloat(document.getElementById('btc-quantity').value) || 0;
+            if (rawPrices.btc.price && btcQty > 0) {
+                const btcTotal = btcQty * rawPrices.btc.price;
+                document.getElementById('btc-total').textContent = `${symbol}${btcTotal.toLocaleString(undefined, {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2
+                })}`;
+                grandTotal += btcTotal;
+            } else {
+                document.getElementById('btc-total').textContent = '-';
+            }
+            
+            // Calculate XRP
+            const xrpQty = parseFloat(document.getElementById('xrp-quantity').value) || 0;
+            if (rawPrices.xrp.price && xrpQty > 0) {
+                const xrpTotal = xrpQty * rawPrices.xrp.price;
+                document.getElementById('xrp-total').textContent = `${symbol}${xrpTotal.toLocaleString(undefined, {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2
+                })}`;
+                grandTotal += xrpTotal;
+            } else {
+                document.getElementById('xrp-total').textContent = '-';
+            }
+            
+            // Update Grand Total
+            if (grandTotal > 0) {
+                document.getElementById('grand-total').textContent = `${symbol}${grandTotal.toLocaleString(undefined, {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2
+                })}`;
+            } else {
+                document.getElementById('grand-total').textContent = '-';
+            }
         }
         
         // Fetch prices on load
