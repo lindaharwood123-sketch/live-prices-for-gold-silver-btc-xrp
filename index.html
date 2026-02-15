@@ -168,9 +168,9 @@
         <div class="control-group">
             <label for="metal-unit">Gold/Silver Unit</label>
             <select id="metal-unit" onchange="updateMetalPrices()">
-                <option value="oz">Troy Ounce (oz)</option>
-                <option value="gram">Gram (g)</option>
-                <option value="kg">Kilogram (kg)</option>
+               <option value="gram">Gram (g)</option>
+               <option value="oz">Troy Ounce (oz)</option>
+               <option value="kg">Kilogram (kg)</option>
             </select>
         </div>
     </div>
@@ -246,9 +246,9 @@
         
         // Conversion rates (from troy ounce)
         const conversions = {
-            'oz': 1,           
-            'gram': 0.03215,   
-            'kg': 32.1507      
+            'oz': 1,
+            'gram': 31.1035,   // 1 troy oz = 31.1035 grams
+            'kg': 0.031103     // 1 troy oz = 0.031103 kg
         };
         
         // Currency symbols
