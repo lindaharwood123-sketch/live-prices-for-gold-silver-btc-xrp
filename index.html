@@ -473,5 +473,10 @@
         // Refresh every 60 seconds
         setInterval(fetchPrices, 60000);
     </script>
+    <script>
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('/service-worker.js');
+}
+</script>
 </body>
 </html>
